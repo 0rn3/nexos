@@ -456,6 +456,7 @@ option{background:var(--sf);}
 // GLOBAL STATE
 // ══════════════════════════════════════════════════
 const API = window.NexOS || null;  // Electron or null (browser fallback)
+console.log('API:', API);
 
 let CFG = {
   theme:'dark_cyber', accent:'#4f9cff', wallpaper:'grid',
@@ -478,6 +479,8 @@ async function boot() {
     CFG = await API.cfg.load();
     INSTALLED_APPS = await API.apps.list();
   }
+  renderDesktopIcons();
+  renderStartMenu();
 
   applyTheme();
   renderDesktopIcons();
@@ -1616,7 +1619,31 @@ function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'
 // ══════════════════════════════════════════════════
 // BOOT
 // ══════════════════════════════════════════════════
-boot();
-</script>
-</body>
-</html>
+boot()
+async function boot() {
+  if (document.body) {
+    if (API && API.platform === 'darwin') document.body.classList.add('mac');
+    else if (API && API.platform === 'win32') document.body.classList.add('win');
+  }
+
+  if (API) {
+    try {
+      CFG = await API.cfg.load();
+      INSTALLED_APPS = await API.apps.list();
+    } catch(e) {
+      console.error('API error:', e);
+    }
+  }
+
+  applyTheme();
+  renderDesktopIcons();
+  renderStartMenu();
+  startClock();
+
+  if (CFG.firstRun) {
+    setTimeout(() => {
+      notify('🎉', 'NexOSへようこそ！', 'アイコンをダブルクリックでアプリを起動できます');
+      if (API) { CFG.firstRun = false; API.cfg.save(CFG); }
+    }, 800);
+  }
+}
