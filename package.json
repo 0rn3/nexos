@@ -1,0 +1,28 @@
+{
+  "name": "nexos",
+  "version": "1.0.0",
+  "description": "NexOS — Electron-based desktop OS shell",
+  "main": "src/main.js",
+  "author": "your-name",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev":   "electron . --dev",
+    "build:win":   "electron-builder --win",
+    "build:mac":   "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^29.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.nexos.app",
+    "productName": "NexOS",
+    "directories": { "output": "dist" },
+    "files": ["src/**/*", "assets/**/*", "package.json"],
+    "win":   { "target": [{"target":"nsis","arch":["x64"]}], "icon":"assets/icon.ico" },
+    "mac":   { "target": [{"target":"dmg","arch":["x64","arm64"]}], "icon":"assets/icon.icns", "category":"public.app-category.utilities" },
+    "linux": { "target": [{"target":"AppImage","arch":["x64"]}], "icon":"assets/icon.png", "category":"Utility" }
+  }
+}

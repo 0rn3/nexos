@@ -1,0 +1,1622 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NexOS</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap');
+
+/* ═══════════════════════════════════════════
+   CSS VARIABLES & RESET
+═══════════════════════════════════════════ */
+:root {
+  --acc: #4f9cff;
+  --acc2: #8b5cff;
+  --bg: #0d1117;
+  --sf: #161b22;
+  --sf2: #21262d;
+  --bd: rgba(79,156,255,.18);
+  --tx: #e6edf3;
+  --mt: #8b949e;
+  --green: #3fb950;
+  --red: #f85149;
+  --yel: #d29922;
+  --font: 'Segoe UI', system-ui, sans-serif;
+  --wr: 10px;
+  --anim: 150ms;
+  --tb-h: 46px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);}
+body{font-family:var(--font);font-size:13px;color:var(--tx);display:flex;flex-direction:column;user-select:none;}
+
+/* ═══ TITLEBAR (frameless) ═══════════════ */
+#titlebar{
+  height:30px;background:rgba(0,0,0,.4);display:flex;
+  align-items:center;padding:0 10px;gap:8px;
+  -webkit-app-region:drag;flex-shrink:0;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  position:relative;z-index:9999;
+}
+.tb-logo{font-family:'Syne',sans-serif;font-size:12px;font-weight:800;letter-spacing:2px;
+  background:linear-gradient(90deg,var(--acc),var(--acc2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.tb-drag{flex:1;}
+#win-btns{display:flex;-webkit-app-region:no-drag;}
+.wb{width:46px;height:30px;display:flex;align-items:center;justify-content:center;
+  font-size:11px;cursor:pointer;color:var(--mt);transition:all .12s;}
+.wb:hover{background:rgba(255,255,255,.08);color:var(--tx);}
+.wb.cl:hover{background:var(--red);color:#fff;}
+/* macOS: no custom buttons needed */
+body.mac #win-btns{display:none;}
+body.mac #titlebar{padding-left:80px;}
+
+/* ═══ DESKTOP ════════════════════════════ */
+#desktop{
+  flex:1;position:relative;overflow:hidden;
+  background:var(--bg);
+}
+#desktop::before{
+  content:'';position:absolute;inset:0;
+  background-image:linear-gradient(var(--acc)12 1px,transparent 1px),
+    linear-gradient(90deg,var(--acc)12 1px,transparent 1px);
+  background-size:40px 40px;
+  pointer-events:none;
+}
+#desktop-icons{position:absolute;top:16px;left:16px;display:flex;flex-direction:column;gap:4px;flex-wrap:wrap;max-height:calc(100% - 32px);}
+
+/* Desktop icon */
+.di{
+  width:76px;text-align:center;cursor:pointer;
+  padding:8px 4px 6px;border-radius:8px;transition:background var(--anim);
+}
+.di:hover{background:rgba(79,156,255,.15);}
+.di.sel{background:rgba(79,156,255,.25);outline:1px solid rgba(79,156,255,.5);}
+.di-ic{font-size:32px;display:block;line-height:1;margin-bottom:5px;}
+.di-lb{font-size:10px;color:var(--tx);text-shadow:0 1px 3px #000;word-break:break-all;line-height:1.3;}
+
+/* ═══ TASKBAR ════════════════════════════ */
+#taskbar{
+  height:var(--tb-h);background:rgba(13,17,23,.88);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--bd);display:flex;align-items:center;
+  padding:0 8px;gap:4px;flex-shrink:0;z-index:5000;
+  position:relative;
+}
+#tb-start{
+  width:36px;height:34px;border-radius:8px;display:flex;align-items:center;
+  justify-content:center;cursor:pointer;font-size:18px;flex-shrink:0;
+  transition:background var(--anim);
+}
+#tb-start:hover{background:var(--bd);}
+#tb-apps{display:flex;gap:3px;flex:1;overflow-x:auto;align-items:center;}
+#tb-apps::-webkit-scrollbar{display:none;}
+.tb-app{
+  display:flex;align-items:center;gap:5px;padding:5px 10px;
+  border-radius:7px;cursor:pointer;font-size:11px;color:var(--mt);
+  transition:all var(--anim);max-width:140px;flex-shrink:0;
+  white-space:nowrap;overflow:hidden;
+}
+.tb-app:hover{background:var(--bd);color:var(--tx);}
+.tb-app.active{background:rgba(79,156,255,.18);color:var(--acc);}
+.tb-app .ta-ic{font-size:14px;flex-shrink:0;}
+.tb-app .ta-lb{overflow:hidden;text-overflow:ellipsis;}
+#tb-sys{display:flex;align-items:center;gap:2px;margin-left:auto;flex-shrink:0;}
+.ts-btn{
+  height:34px;padding:0 8px;border-radius:6px;display:flex;align-items:center;
+  gap:4px;cursor:pointer;font-size:11px;color:var(--mt);transition:all var(--anim);
+}
+.ts-btn:hover{background:var(--bd);color:var(--tx);}
+#clock{font-family:'JetBrains Mono',monospace;font-size:11px;min-width:60px;text-align:center;}
+
+/* ═══ START MENU ═════════════════════════ */
+#startmenu{
+  position:absolute;bottom:calc(var(--tb-h) + 4px);left:6px;
+  width:320px;max-height:70vh;
+  background:rgba(13,17,23,.96);border:1px solid var(--bd);
+  border-radius:12px;padding:16px;z-index:6000;
+  backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);
+  box-shadow:0 -10px 40px rgba(0,0,0,.7);
+  display:none;flex-direction:column;gap:12px;overflow:hidden;
+}
+#startmenu.show{display:flex;}
+.sm-search{
+  background:rgba(255,255,255,.06);border:1px solid var(--bd);
+  border-radius:8px;padding:8px 12px;color:var(--tx);font-size:12px;
+  outline:none;width:100%;font-family:var(--font);
+}
+.sm-search:focus{border-color:var(--acc);}
+.sm-apps{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;overflow-y:auto;flex:1;}
+.sm-app{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:10px 4px;border-radius:8px;cursor:pointer;transition:background var(--anim);
+  text-align:center;
+}
+.sm-app:hover{background:rgba(79,156,255,.12);}
+.sm-app .sa-ic{font-size:26px;line-height:1;}
+.sm-app .sa-lb{font-size:9px;color:var(--mt);word-break:break-all;line-height:1.3;}
+.sm-sep{height:1px;background:var(--bd);}
+.sm-footer{display:flex;gap:6px;justify-content:flex-end;}
+.sm-fbtn{
+  padding:6px 12px;border-radius:6px;cursor:pointer;font-size:11px;
+  color:var(--mt);transition:all var(--anim);display:flex;align-items:center;gap:5px;
+}
+.sm-fbtn:hover{background:var(--bd);color:var(--tx);}
+
+/* ═══ WINDOW SYSTEM ══════════════════════ */
+.nwin{
+  position:absolute;display:flex;flex-direction:column;
+  background:var(--sf);border:1px solid var(--bd);
+  border-radius:var(--wr);overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.04);
+  min-width:300px;min-height:200px;
+  transition:box-shadow var(--anim);
+}
+.nwin.focused{
+  border-color:rgba(79,156,255,.4);
+  box-shadow:0 24px 80px rgba(0,0,0,.9),0 0 0 1px rgba(79,156,255,.25);
+}
+.nwin.minimized{display:none!important;}
+.nwin-bar{
+  height:32px;background:rgba(0,0,0,.3);border-bottom:1px solid var(--bd);
+  display:flex;align-items:center;padding:0 8px;gap:6px;
+  cursor:move;flex-shrink:0;user-select:none;
+}
+.nwin-ic{font-size:14px;flex-shrink:0;}
+.nwin-title{font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mt);}
+.nwin.focused .nwin-title{color:var(--tx);}
+.nwin-btns{display:flex;gap:4px;margin-left:auto;flex-shrink:0;}
+.nwin-btn{
+  width:11px;height:11px;border-radius:50%;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:7px;color:transparent;transition:color .1s;
+}
+.nwin-btn:hover{color:rgba(0,0,0,.7);}
+.nwin-btn.cl{background:#ff5f57;}
+.nwin-btn.mn{background:#ffbd2e;}
+.nwin-btn.mx{background:#28ca41;}
+.nwin-body{flex:1;overflow:hidden;display:flex;flex-direction:column;}
+.nwin-resize{
+  position:absolute;right:0;bottom:0;width:14px;height:14px;cursor:se-resize;
+  background:transparent;
+}
+
+/* ═══ CONTEXT MENU ═══════════════════════ */
+#ctxmenu{
+  position:fixed;background:rgba(20,26,36,.97);border:1px solid var(--bd);
+  border-radius:8px;padding:4px;z-index:99999;min-width:160px;
+  box-shadow:0 8px 30px rgba(0,0,0,.7);display:none;
+}
+#ctxmenu.show{display:block;}
+.ctx-item{
+  padding:7px 12px;border-radius:5px;cursor:pointer;font-size:12px;
+  color:var(--tx);display:flex;align-items:center;gap:8px;transition:background .1s;
+}
+.ctx-item:hover{background:rgba(79,156,255,.15);}
+.ctx-sep{height:1px;background:var(--bd);margin:4px 2px;}
+.ctx-item.danger{color:var(--red);}
+.ctx-item.danger:hover{background:rgba(248,81,73,.1);}
+
+/* ═══ NOTIFICATION ═══════════════════════ */
+#notif-area{
+  position:absolute;top:10px;right:10px;z-index:9000;
+  display:flex;flex-direction:column;gap:6px;pointer-events:none;
+}
+.notif{
+  background:rgba(22,27,34,.96);border:1px solid var(--bd);
+  border-radius:8px;padding:10px 14px;min-width:200px;max-width:280px;
+  box-shadow:0 4px 20px rgba(0,0,0,.6);
+  animation:notif-in .2s ease;pointer-events:all;
+  display:flex;align-items:flex-start;gap:8px;
+}
+@keyframes notif-in{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
+.notif-icon{font-size:16px;flex-shrink:0;line-height:1.4;}
+.notif-text{flex:1;}
+.notif-title{font-size:11px;font-weight:600;color:var(--tx);margin-bottom:2px;}
+.notif-body{font-size:10px;color:var(--mt);}
+
+/* ═══ SCROLLBAR ══════════════════════════ */
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px;}
+
+/* ═══ APP COMMON STYLES ══════════════════ */
+.app-wrap{height:100%;overflow:auto;padding:14px;font-size:12px;line-height:1.6;}
+.app-toolbar{
+  height:36px;background:rgba(0,0,0,.2);border-bottom:1px solid var(--bd);
+  display:flex;align-items:center;padding:0 10px;gap:6px;flex-shrink:0;
+}
+.app-btn{
+  padding:4px 10px;background:rgba(255,255,255,.06);border:1px solid var(--bd);
+  border-radius:5px;cursor:pointer;font-size:11px;color:var(--mt);
+  transition:all .12s;white-space:nowrap;
+}
+.app-btn:hover{background:rgba(79,156,255,.15);color:var(--tx);border-color:var(--acc);}
+.app-btn.primary{background:var(--acc);color:#000;border-color:transparent;font-weight:600;}
+.app-btn.primary:hover{filter:brightness(1.1);}
+.app-btn.danger{color:var(--red);}
+.app-btn.danger:hover{background:rgba(248,81,73,.1);border-color:var(--red);}
+.app-input{
+  background:rgba(0,0,0,.3);border:1px solid var(--bd);color:var(--tx);
+  padding:6px 10px;border-radius:6px;font-size:12px;outline:none;
+  font-family:var(--font);transition:border-color .12s;
+}
+.app-input:focus{border-color:var(--acc);}
+.app-label{font-size:10px;color:var(--mt);letter-spacing:.5px;}
+.app-section{margin-bottom:16px;}
+.app-section-title{
+  font-size:9px;letter-spacing:2px;color:var(--mt);text-transform:uppercase;
+  margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--bd);
+}
+
+/* Settings rows */
+.setting-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);
+}
+.setting-row:last-child{border-bottom:none;}
+.setting-label{font-size:12px;color:var(--tx);}
+.setting-sub{font-size:10px;color:var(--mt);margin-top:2px;}
+.toggle{
+  width:36px;height:20px;border-radius:10px;background:var(--sf2);
+  cursor:pointer;position:relative;transition:background .2s;flex-shrink:0;
+}
+.toggle.on{background:var(--acc);}
+.toggle::after{
+  content:'';position:absolute;left:3px;top:3px;
+  width:14px;height:14px;border-radius:50%;background:#fff;
+  transition:transform .2s;
+}
+.toggle.on::after{transform:translateX(16px);}
+select.app-input{cursor:pointer;}
+option{background:var(--sf);}
+
+/* Terminal */
+#term-out{
+  flex:1;overflow-y:auto;padding:10px 12px;
+  font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.7;
+  background:#000;color:#d1d5da;
+}
+.t-prompt{color:#3fb950;}
+.t-cmd{color:#79c0ff;}
+.t-out{color:#d1d5da;}
+.t-err{color:#f85149;}
+.t-ok{color:#3fb950;}
+.t-info{color:#8b949e;}
+#term-input-row{
+  display:flex;align-items:center;gap:6px;padding:6px 10px;
+  background:#0a0a0a;border-top:1px solid #222;flex-shrink:0;
+}
+#term-prompt-label{color:#3fb950;font-family:'JetBrains Mono',monospace;font-size:12px;white-space:nowrap;}
+#term-in{
+  flex:1;background:none;border:none;color:#d1d5da;outline:none;
+  font-family:'JetBrains Mono',monospace;font-size:12px;
+}
+
+/* File Manager */
+#fm-path{
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mt);
+  padding:4px 8px;background:rgba(0,0,0,.2);border-radius:4px;flex:1;
+}
+.fm-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));
+  gap:6px;padding:10px;
+}
+.fm-item{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:8px 4px;border-radius:6px;cursor:pointer;text-align:center;
+  transition:background .1s;
+}
+.fm-item:hover{background:rgba(79,156,255,.1);}
+.fm-item.sel{background:rgba(79,156,255,.2);}
+.fm-icon{font-size:28px;line-height:1;}
+.fm-name{font-size:9px;color:var(--tx);word-break:break-all;line-height:1.3;}
+
+/* Calculator */
+#calc-disp{
+  background:#000;border:none;color:var(--acc);font-family:'JetBrains Mono',monospace;
+  font-size:24px;text-align:right;padding:14px 12px;outline:none;width:100%;
+  flex-shrink:0;
+}
+.calc-btns{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;flex:1;padding:4px;}
+.calc-btn{
+  background:var(--sf2);border:none;color:var(--tx);font-size:14px;
+  cursor:pointer;border-radius:6px;transition:all .1s;font-family:var(--font);
+  display:flex;align-items:center;justify-content:center;
+}
+.calc-btn:hover{filter:brightness(1.3);}
+.calc-btn:active{transform:scale(.95);}
+.calc-btn.op{background:rgba(79,156,255,.2);color:var(--acc);}
+.calc-btn.eq{background:var(--acc);color:#000;font-weight:700;}
+.calc-btn.fn{background:rgba(255,255,255,.06);color:var(--mt);}
+
+/* App Store */
+.store-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+  gap:10px;padding:12px;
+}
+.store-card{
+  background:var(--sf2);border:1px solid var(--bd);border-radius:10px;
+  padding:14px;display:flex;flex-direction:column;gap:8px;
+  transition:border-color var(--anim);
+}
+.store-card:hover{border-color:rgba(79,156,255,.4);}
+.sc-icon{font-size:36px;line-height:1;}
+.sc-name{font-size:13px;font-weight:600;color:var(--tx);}
+.sc-desc{font-size:10px;color:var(--mt);line-height:1.5;flex:1;}
+.sc-action{
+  padding:6px;border-radius:6px;border:none;cursor:pointer;
+  font-size:11px;font-weight:600;text-align:center;transition:all .15s;
+  font-family:var(--font);
+}
+.sc-action.install{background:var(--acc);color:#000;}
+.sc-action.install:hover{filter:brightness(1.1);}
+.sc-action.installed{background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.3);}
+.sc-action.uninstall{background:rgba(248,81,73,.1);color:var(--red);}
+.sc-badge{font-size:8px;padding:2px 6px;border-radius:4px;background:rgba(79,156,255,.15);color:var(--acc);}
+
+/* Text Editor */
+#editor-area{
+  flex:1;display:flex;overflow:hidden;
+}
+#ed-lines{
+  width:44px;background:rgba(0,0,0,.2);padding:10px 0;text-align:right;
+  font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.65;
+  color:var(--mt);padding-right:10px;flex-shrink:0;border-right:1px solid var(--bd);
+  user-select:none;overflow:hidden;
+}
+#ed-code{
+  flex:1;background:transparent;border:none;color:#c9d1f5;outline:none;
+  font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.65;
+  resize:none;padding:10px 14px;tab-size:2;white-space:pre;caret-color:var(--acc);
+  overflow:auto;
+}
+#ed-code::selection{background:rgba(79,156,255,.2);}
+
+/* Image Viewer */
+.gallery-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px;}
+.gallery-thumb{
+  aspect-ratio:1;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-size:36px;cursor:pointer;border:1px solid var(--bd);transition:border-color .1s;
+  background:var(--sf2);
+}
+.gallery-thumb:hover{border-color:var(--acc);}
+
+/* Clock/Weather widget on desktop */
+#desk-clock{
+  position:absolute;bottom:60px;right:16px;
+  background:rgba(13,17,23,.6);border:1px solid var(--bd);
+  border-radius:12px;padding:14px 20px;text-align:center;
+  backdrop-filter:blur(10px);pointer-events:none;
+}
+#desk-time{font-family:'JetBrains Mono',monospace;font-size:28px;color:var(--tx);letter-spacing:2px;}
+#desk-date{font-size:11px;color:var(--mt);margin-top:2px;}
+</style>
+</head>
+<body>
+
+<!-- TITLEBAR -->
+<div id="titlebar">
+  <span class="tb-logo">NEXOS</span>
+  <div class="tb-drag"></div>
+  <div id="win-btns">
+    <div class="wb" onclick="NexOS.win.minimize()" title="最小化">─</div>
+    <div class="wb" onclick="NexOS.win.maximize()" title="最大化">□</div>
+    <div class="wb cl" onclick="NexOS.win.close()" title="閉じる">✕</div>
+  </div>
+</div>
+
+<!-- DESKTOP -->
+<div id="desktop" oncontextmenu="desktopCtx(event)" onclick="closeMenus()">
+  <div id="desktop-icons"></div>
+  <!-- Desktop clock -->
+  <div id="desk-clock">
+    <div id="desk-time">00:00</div>
+    <div id="desk-date"></div>
+  </div>
+</div>
+
+<!-- TASKBAR -->
+<div id="taskbar">
+  <div id="tb-start" onclick="toggleStart(event)" title="スタート">⊞</div>
+  <div id="tb-apps"></div>
+  <div id="tb-sys">
+    <div class="ts-btn" onclick="showNotifPanel()" id="notif-btn">🔔</div>
+    <div class="ts-btn" id="clock" onclick="openApp('clock')">00:00</div>
+  </div>
+</div>
+
+<!-- START MENU -->
+<div id="startmenu">
+  <input class="sm-search" id="sm-search" placeholder="🔍 アプリを検索..." oninput="filterStartApps(this.value)">
+  <div class="sm-apps" id="sm-apps"></div>
+  <div class="sm-sep"></div>
+  <div class="sm-footer">
+    <div class="sm-fbtn" onclick="openApp('settings')">⚙️ 設定</div>
+    <div class="sm-fbtn" onclick="confirmShutdown()">⏻ 電源</div>
+  </div>
+</div>
+
+<!-- CONTEXT MENU -->
+<div id="ctxmenu">
+  <div class="ctx-item" onclick="ctxAction('refresh')">🔄 更新</div>
+  <div class="ctx-item" onclick="ctxAction('newfile')">📄 新規テキストファイル</div>
+  <div class="ctx-item" onclick="ctxAction('newfolder')">📁 新規フォルダ</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="ctxAction('settings')">⚙️ デスクトップ設定</div>
+  <div class="ctx-item" onclick="ctxAction('terminal')">💻 ターミナルを開く</div>
+</div>
+
+<!-- NOTIFICATIONS -->
+<div id="notif-area"></div>
+
+<script>
+// ══════════════════════════════════════════════════
+// GLOBAL STATE
+// ══════════════════════════════════════════════════
+const API = window.NexOS || null;  // Electron or null (browser fallback)
+
+let CFG = {
+  theme:'dark_cyber', accent:'#4f9cff', wallpaper:'grid',
+  taskbarPos:'bottom', font:'system', showClock:true, osName:'NexOS'
+};
+let INSTALLED_APPS = ['terminal','filemanager','texteditor','calculator','settings','appstore'];
+let WINDOWS = {};     // id -> { el, title, icon, minimized }
+let WIN_Z = 100;
+let ACTIVE_WIN = null;
+
+// ══════════════════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════════════════
+async function boot() {
+  // Platform class
+  if (API) document.body.classList.add(API.platform === 'darwin' ? 'mac' : API.platform === 'win32' ? 'win' : 'linux');
+
+  // Load config & apps
+  if (API) {
+    CFG = await API.cfg.load();
+    INSTALLED_APPS = await API.apps.list();
+  }
+
+  applyTheme();
+  renderDesktopIcons();
+  renderStartMenu();
+  startClock();
+
+  if (CFG.firstRun) {
+    setTimeout(() => {
+      notify('🎉', 'NexOSへようこそ！', 'アイコンをダブルクリックでアプリを起動できます');
+      if (API) { CFG.firstRun = false; API.cfg.save(CFG); }
+    }, 800);
+  }
+}
+
+// ══════════════════════════════════════════════════
+// THEME
+// ══════════════════════════════════════════════════
+const THEMES = {
+  dark_cyber:   { bg:'#0d1117', sf:'#161b22', bd:'rgba(79,156,255,.18)',  tx:'#e6edf3', mt:'#8b949e' },
+  light_clean:  { bg:'#f0f2f5', sf:'#ffffff', bd:'rgba(0,0,0,.1)',        tx:'#1a1a2e', mt:'#555'    },
+  retro_green:  { bg:'#001100', sf:'#001a00', bd:'#00cc00',               tx:'#00ff00', mt:'#009900' },
+  neon_purple:  { bg:'#0a0014', sf:'#150028', bd:'rgba(180,0,255,.3)',     tx:'#f0e0ff', mt:'#b080d0' },
+  ocean_deep:   { bg:'#000d1a', sf:'#001428', bd:'rgba(0,150,255,.25)',    tx:'#c0e8ff', mt:'#6090b0' },
+  sakura:       { bg:'#180a14', sf:'#281020', bd:'rgba(255,120,160,.25)',  tx:'#ffe0ec', mt:'#cc88aa' },
+};
+const WALLPAPERS = {
+  grid:    () => `linear-gradient(var(--acc)14 1px,transparent 1px),linear-gradient(90deg,var(--acc)14 1px,transparent 1px)`,
+  dots:    () => `radial-gradient(circle,var(--acc)80 1px,transparent 1px)`,
+  circuit: () => `linear-gradient(var(--acc)20 1px,transparent 1px),linear-gradient(90deg,var(--acc)20 1px,transparent 1px),radial-gradient(var(--acc)40 2px,transparent 2px)`,
+  waves:   () => `repeating-linear-gradient(45deg,transparent,transparent 10px,var(--acc)16 10px,var(--acc)16 11px)`,
+  solid:   () => `none`,
+};
+
+function applyTheme() {
+  const t = THEMES[CFG.theme] || THEMES.dark_cyber;
+  const r = document.documentElement.style;
+  r.setProperty('--acc',  CFG.accent  || '#4f9cff');
+  r.setProperty('--bg',   t.bg);
+  r.setProperty('--sf',   t.sf);
+  r.setProperty('--bd',   t.bd);
+  r.setProperty('--tx',   t.tx);
+  r.setProperty('--mt',   t.mt);
+  const wp = WALLPAPERS[CFG.wallpaper] || WALLPAPERS.grid;
+  const desk = document.getElementById('desktop');
+  const img = wp();
+  desk.style.backgroundImage = img === 'none' ? 'none' : img;
+  desk.style.backgroundSize = CFG.wallpaper === 'dots' ? '24px 24px' :
+                               CFG.wallpaper === 'circuit' ? '80px 80px,80px 80px,40px 40px' : '40px 40px';
+}
+
+// ══════════════════════════════════════════════════
+// APP REGISTRY
+// ══════════════════════════════════════════════════
+const APP_REGISTRY = {
+  terminal:    { name:'ターミナル',    icon:'💻', cat:'system',  desc:'コマンドラインシェル',       w:580,h:400, builder: buildTerminal    },
+  filemanager: { name:'ファイル',      icon:'📁', cat:'system',  desc:'ファイルシステムを管理',     w:560,h:420, builder: buildFileManager  },
+  texteditor:  { name:'テキストエディタ',icon:'📝',cat:'tools',   desc:'コードやメモを編集',         w:600,h:450, builder: buildTextEditor   },
+  calculator:  { name:'電卓',          icon:'🧮', cat:'tools',   desc:'計算機',                     w:300,h:420, builder: buildCalculator   },
+  settings:    { name:'設定',          icon:'⚙️', cat:'system',  desc:'OSをカスタマイズ',           w:500,h:460, builder: buildSettings     },
+  appstore:    { name:'アプリストア',   icon:'🏪', cat:'system',  desc:'アプリをインストール',       w:640,h:480, builder: buildAppStore     },
+  browser:     { name:'ブラウザ',      icon:'🌐', cat:'internet',desc:'Webを閲覧',                  w:640,h:480, builder: buildBrowser      },
+  gallery:     { name:'ギャラリー',    icon:'🖼', cat:'media',   desc:'画像を表示',                 w:500,h:420, builder: buildGallery      },
+  music:       { name:'ミュージック',   icon:'🎵', cat:'media',   desc:'音楽プレーヤー',             w:340,h:400, builder: buildMusic        },
+  clock:       { name:'時計',          icon:'🕐', cat:'tools',   desc:'時計・タイマー・ストップウォッチ',w:320,h:360,builder:buildClock },
+  notes:       { name:'付箋',          icon:'📌', cat:'tools',   desc:'クイックメモ',               w:280,h:320, builder: buildNotes        },
+  sysmonitor:  { name:'システムモニタ', icon:'📊', cat:'system',  desc:'CPUやメモリを監視',          w:460,h:380, builder: buildSysMonitor   },
+  snake:       { name:'スネーク',      icon:'🐍', cat:'games',   desc:'クラシックゲーム',           w:360,h:420, builder: buildSnake        },
+  paint:       { name:'ペイント',      icon:'🎨', cat:'tools',   desc:'お絵かきツール',             w:560,h:460, builder: buildPaint        },
+  weather:     { name:'天気',          icon:'🌤', cat:'internet',desc:'天気予報',                   w:360,h:300, builder: buildWeather      },
+  markdown:    { name:'Markdown',      icon:'📋', cat:'tools',   desc:'Markdownプレビュー',         w:580,h:460, builder: buildMarkdown     },
+};
+
+// ══════════════════════════════════════════════════
+// WINDOW MANAGER
+// ══════════════════════════════════════════════════
+let winCounter = 0;
+
+function openApp(appId, extraData) {
+  const def = APP_REGISTRY[appId];
+  if (!def) return;
+
+  // 既存ウィンドウがあれば前面に出す
+  if (WINDOWS[appId]) {
+    focusWin(appId);
+    WINDOWS[appId].minimized = false;
+    WINDOWS[appId].el.classList.remove('minimized');
+    return;
+  }
+
+  const id = appId;
+  const el = document.createElement('div');
+  el.className = 'nwin';
+  el.id = 'win-' + id;
+
+  const desk = document.getElementById('desktop');
+  const dw = desk.offsetWidth, dh = desk.offsetHeight;
+  const w = Math.min(def.w, dw - 40);
+  const h = Math.min(def.h, dh - 40);
+  const x = Math.max(10, (dw - w) / 2 + (winCounter % 5) * 20);
+  const y = Math.max(10, (dh - h) / 2 + (winCounter % 5) * 20);
+  winCounter++;
+
+  el.style.cssText = `width:${w}px;height:${h}px;left:${x}px;top:${y}px;z-index:${++WIN_Z};`;
+
+  // titlebar
+  const bar = document.createElement('div');
+  bar.className = 'nwin-bar';
+  bar.innerHTML = `
+    <span class="nwin-ic">${def.icon}</span>
+    <span class="nwin-title">${def.name}</span>
+    <div class="nwin-btns">
+      <div class="nwin-btn cl" onclick="closeWin('${id}')" title="閉じる">✕</div>
+      <div class="nwin-btn mn" onclick="minWin('${id}')" title="最小化">─</div>
+      <div class="nwin-btn mx" onclick="maxWin('${id}')" title="最大化">□</div>
+    </div>`;
+  bar.addEventListener('mousedown', e => dragWin(e, el));
+  bar.addEventListener('dblclick', () => maxWin(id));
+  el.appendChild(bar);
+
+  // body
+  const body = document.createElement('div');
+  body.className = 'nwin-body';
+  body.id = 'wbody-' + id;
+  el.appendChild(body);
+
+  // resize handle
+  const rh = document.createElement('div');
+  rh.className = 'nwin-resize';
+  rh.addEventListener('mousedown', e => resizeWin(e, el));
+  el.appendChild(rh);
+
+  desk.appendChild(el);
+  WINDOWS[id] = { el, title: def.name, icon: def.icon, minimized: false };
+
+  // Build app content
+  def.builder(body, extraData);
+
+  focusWin(id);
+  addTaskbarBtn(id, def.icon, def.name);
+  startmenuClose();
+}
+
+function closeWin(id) {
+  const w = WINDOWS[id];
+  if (!w) return;
+  w.el.remove();
+  delete WINDOWS[id];
+  removeTaskbarBtn(id);
+  if (ACTIVE_WIN === id) ACTIVE_WIN = null;
+}
+
+function minWin(id) {
+  const w = WINDOWS[id];
+  if (!w) return;
+  w.minimized = !w.minimized;
+  w.el.classList.toggle('minimized', w.minimized);
+  const btn = document.querySelector(`#tb-${id}`);
+  if (btn) btn.classList.toggle('active', !w.minimized);
+}
+
+function maxWin(id) {
+  const w = WINDOWS[id];
+  if (!w) return;
+  const el = w.el;
+  if (el.dataset.maximized === '1') {
+    el.style.cssText = el.dataset.prevStyle;
+    el.dataset.maximized = '0';
+  } else {
+    el.dataset.prevStyle = el.style.cssText;
+    el.style.cssText = `left:0;top:0;width:100%;height:100%;z-index:${++WIN_Z};border-radius:0;`;
+    el.dataset.maximized = '1';
+  }
+}
+
+function focusWin(id) {
+  Object.values(WINDOWS).forEach(w => w.el.classList.remove('focused'));
+  if (WINDOWS[id]) {
+    WINDOWS[id].el.classList.add('focused');
+    WINDOWS[id].el.style.zIndex = ++WIN_Z;
+    ACTIVE_WIN = id;
+  }
+}
+
+// Drag
+function dragWin(e, el) {
+  if (e.target.classList.contains('nwin-btn')) return;
+  e.preventDefault();
+  focusWin(el.id.replace('win-', ''));
+  const ox = e.clientX - el.offsetLeft, oy = e.clientY - el.offsetTop;
+  const mv = e2 => {
+    const desk = document.getElementById('desktop');
+    const nx = Math.max(0, Math.min(e2.clientX - ox, desk.offsetWidth - 100));
+    const ny = Math.max(0, Math.min(e2.clientY - oy, desk.offsetHeight - 40));
+    el.style.left = nx + 'px'; el.style.top = ny + 'px';
+  };
+  const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); };
+  document.addEventListener('mousemove', mv);
+  document.addEventListener('mouseup', up);
+}
+
+// Resize
+function resizeWin(e, el) {
+  e.preventDefault();
+  e.stopPropagation();
+  const sx = e.clientX, sy = e.clientY;
+  const sw = el.offsetWidth, sh = el.offsetHeight;
+  const mv = e2 => {
+    el.style.width  = Math.max(280, sw + e2.clientX - sx) + 'px';
+    el.style.height = Math.max(180, sh + e2.clientY - sy) + 'px';
+  };
+  const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); };
+  document.addEventListener('mousemove', mv);
+  document.addEventListener('mouseup', up);
+}
+
+// Taskbar
+function addTaskbarBtn(id, icon, name) {
+  const el = document.createElement('div');
+  el.className = 'tb-app active'; el.id = 'tb-' + id;
+  el.innerHTML = `<span class="ta-ic">${icon}</span><span class="ta-lb">${name}</span>`;
+  el.onclick = () => {
+    const w = WINDOWS[id]; if (!w) return;
+    if (w.minimized || ACTIVE_WIN !== id) { w.minimized = false; w.el.classList.remove('minimized'); focusWin(id); }
+    else minWin(id);
+  };
+  document.getElementById('tb-apps').appendChild(el);
+}
+function removeTaskbarBtn(id) { document.getElementById('tb-' + id)?.remove(); }
+
+// ══════════════════════════════════════════════════
+// DESKTOP ICONS
+// ══════════════════════════════════════════════════
+function renderDesktopIcons() {
+  const c = document.getElementById('desktop-icons');
+  c.innerHTML = '';
+  INSTALLED_APPS.forEach(id => {
+    const def = APP_REGISTRY[id]; if (!def) return;
+    const el = document.createElement('div');
+    el.className = 'di';
+    el.dataset.appId = id;
+    el.innerHTML = `<span class="di-ic">${def.icon}</span><span class="di-lb">${def.name}</span>`;
+    el.addEventListener('dblclick', () => openApp(id));
+    el.addEventListener('click', e => {
+      document.querySelectorAll('.di').forEach(d => d.classList.remove('sel'));
+      el.classList.add('sel');
+      e.stopPropagation();
+    });
+    c.appendChild(el);
+  });
+}
+
+// ══════════════════════════════════════════════════
+// START MENU
+// ══════════════════════════════════════════════════
+function renderStartMenu(filter) {
+  const c = document.getElementById('sm-apps');
+  c.innerHTML = '';
+  const q = (filter || '').toLowerCase();
+  INSTALLED_APPS.forEach(id => {
+    const def = APP_REGISTRY[id]; if (!def) return;
+    if (q && !def.name.toLowerCase().includes(q) && !id.includes(q)) return;
+    const el = document.createElement('div');
+    el.className = 'sm-app';
+    el.innerHTML = `<span class="sa-ic">${def.icon}</span><span class="sa-lb">${def.name}</span>`;
+    el.onclick = () => { openApp(id); startmenuClose(); };
+    c.appendChild(el);
+  });
+}
+function filterStartApps(q) { renderStartMenu(q); }
+function toggleStart(e) {
+  e.stopPropagation();
+  const sm = document.getElementById('startmenu');
+  sm.classList.toggle('show');
+  if (sm.classList.contains('show')) {
+    document.getElementById('sm-search').value = '';
+    renderStartMenu();
+    setTimeout(() => document.getElementById('sm-search').focus(), 50);
+  }
+}
+function startmenuClose() { document.getElementById('startmenu').classList.remove('show'); }
+
+// ══════════════════════════════════════════════════
+// CONTEXT MENU
+// ══════════════════════════════════════════════════
+let ctxTarget = null;
+function desktopCtx(e) {
+  e.preventDefault();
+  const m = document.getElementById('ctxmenu');
+  m.style.left = e.clientX + 'px';
+  m.style.top  = e.clientY + 'px';
+  m.classList.add('show');
+}
+function ctxAction(a) {
+  document.getElementById('ctxmenu').classList.remove('show');
+  if (a === 'refresh') { renderDesktopIcons(); notify('🔄','更新しました','デスクトップを更新しました'); }
+  if (a === 'terminal') openApp('terminal');
+  if (a === 'settings') openApp('settings');
+  if (a === 'newfile') {
+    const name = prompt('ファイル名:', 'new_file.txt');
+    if (name && API) API.fs.write('Desktop/' + name, '').then(() => notify('📄','作成',name));
+  }
+  if (a === 'newfolder') {
+    const name = prompt('フォルダ名:', '新しいフォルダ');
+    if (name && API) API.fs.mkdir('Desktop/' + name).then(() => notify('📁','作成',name));
+  }
+}
+function closeMenus() {
+  document.getElementById('ctxmenu').classList.remove('show');
+  startmenuClose();
+  document.querySelectorAll('.di').forEach(d => d.classList.remove('sel'));
+}
+
+// ══════════════════════════════════════════════════
+// CLOCK
+// ══════════════════════════════════════════════════
+function startClock() {
+  function tick() {
+    const now = new Date();
+    const t = now.toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit' });
+    const d = now.toLocaleDateString('ja-JP', { month:'long', day:'numeric', weekday:'short' });
+    document.getElementById('clock').textContent = t;
+    document.getElementById('desk-time').textContent = now.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    document.getElementById('desk-date').textContent = d;
+  }
+  setInterval(tick, 1000); tick();
+}
+
+// ══════════════════════════════════════════════════
+// NOTIFICATIONS
+// ══════════════════════════════════════════════════
+function notify(icon, title, body, duration = 3500) {
+  const area = document.getElementById('notif-area');
+  const el = document.createElement('div');
+  el.className = 'notif';
+  el.innerHTML = `<div class="notif-icon">${icon}</div><div class="notif-text"><div class="notif-title">${title}</div><div class="notif-body">${body}</div></div>`;
+  el.onclick = () => el.remove();
+  area.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(), 300); }, duration);
+}
+function showNotifPanel() { notify('🔔','通知','新しい通知はありません'); }
+
+// ══════════════════════════════════════════════════
+// SHUTDOWN
+// ══════════════════════════════════════════════════
+async function confirmShutdown() {
+  startmenuClose();
+  if (API) {
+    const r = await API.dialog.message({ type:'question', title:'NexOSを終了',
+      message:'NexOSを終了しますか？', buttons:['終了','キャンセル'] });
+    if (r.response === 0) API.win.close();
+  } else {
+    if (confirm('NexOSを終了しますか？')) window.close();
+  }
+}
+
+// ══════════════════════════════════════════════════
+// ══ APP BUILDERS ══════════════════════════════════
+// ══════════════════════════════════════════════════
+
+// ── TERMINAL ─────────────────────────────────────
+function buildTerminal(body) {
+  body.innerHTML = `
+    <div id="term-out" onclick="document.getElementById('term-in').focus()">
+      <div class="t-info">NexOS Terminal v1.0 — type 'help' for commands</div>
+    </div>
+    <div id="term-input-row">
+      <span id="term-prompt-label">nexos@shell:~$&nbsp;</span>
+      <input id="term-in" autocomplete="off" spellcheck="false" onkeydown="termKey(event)">
+    </div>`;
+  setTimeout(() => document.getElementById('term-in')?.focus(), 100);
+}
+
+const TERM_HISTORY = [];
+let TERM_HIST_IDX = -1;
+
+const TERM_CMDS = {
+  help: () => `利用可能なコマンド:\n  help       このヘルプを表示\n  ls [dir]   ファイル一覧\n  cat [file] ファイルを表示\n  echo [txt] テキストを出力\n  whoami     ユーザー名\n  date       現在時刻\n  sysinfo    システム情報\n  clear      画面クリア\n  open [app] アプリを開く\n  apps       インストール済みアプリ\n  neofetch   システム情報をおしゃれに表示`,
+  date: () => new Date().toLocaleString('ja-JP'),
+  whoami: () => 'nexos-user',
+  pwd: () => '/home/nexos-user',
+  neofetch: async () => {
+    const info = API ? await API.sys.info() : {};
+    return `
+    ███╗   ██╗███████╗██╗  ██╗ ██████╗ ███████╗
+    ████╗  ██║██╔════╝╚██╗██╔╝██╔═══██╗██╔════╝
+    ██╔██╗ ██║█████╗   ╚███╔╝ ██║   ██║███████╗
+    ██║╚██╗██║██╔══╝   ██╔██╗ ██║   ██║╚════██║
+    ██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝███████║
+    ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝
+
+    OS: NexOS v1.0 (Electron Shell)
+    Platform: ${info.platform || navigator.platform}
+    CPU Cores: ${info.cpus || 'N/A'}
+    Memory: ${info.totalMem ? Math.round(info.totalMem/1024/1024/1024)+'GB' : 'N/A'}
+    Node: ${info.nodeVersion || 'N/A'}
+    Electron: ${info.electronVersion || 'N/A'}`;
+  },
+  sysinfo: async () => {
+    if (!API) return 'システム情報はElectron環境でのみ利用可能';
+    const i = await API.sys.info();
+    return `Platform: ${i.platform}\nArch: ${i.arch}\nCPU: ${i.cpus} cores\nRAM: ${Math.round(i.totalMem/1024/1024)}MB total, ${Math.round(i.freeMem/1024/1024)}MB free\nHostname: ${i.hostname}\nUser: ${i.user}`;
+  },
+  apps: () => 'インストール済み: ' + INSTALLED_APPS.join(', '),
+  clear: () => '__clear__',
+};
+
+async function termKey(e) {
+  const inp = e.target;
+  if (e.key === 'ArrowUp') {
+    if (TERM_HIST_IDX < TERM_HISTORY.length - 1) { TERM_HIST_IDX++; inp.value = TERM_HISTORY[TERM_HIST_IDX]; } return;
+  }
+  if (e.key === 'ArrowDown') {
+    if (TERM_HIST_IDX > 0) { TERM_HIST_IDX--; inp.value = TERM_HISTORY[TERM_HIST_IDX]; } else { TERM_HIST_IDX = -1; inp.value = ''; } return;
+  }
+  if (e.key !== 'Enter') return;
+  const cmd = inp.value.trim(); inp.value = ''; TERM_HIST_IDX = -1;
+  if (!cmd) return;
+  TERM_HISTORY.unshift(cmd);
+
+  const out = document.getElementById('term-out');
+  if (!out) return;
+
+  // Print command
+  const cmdEl = document.createElement('div');
+  cmdEl.innerHTML = `<span class="t-prompt">nexos@shell:~$</span> <span class="t-cmd">${escHtml(cmd)}</span>`;
+  out.appendChild(cmdEl);
+
+  let result;
+  const parts = cmd.split(' ');
+  const base = parts[0].toLowerCase();
+  const args = parts.slice(1);
+
+  if (base === 'clear') { out.innerHTML = ''; return; }
+  if (base === 'open' && args[0]) { openApp(args[0]); result = `${args[0]} を起動しました`; }
+  else if (base === 'ls') {
+    if (API) {
+      const items = await API.fs.list(args[0] || '');
+      result = items.map(i => (i.isDir ? '📁 ' : '📄 ') + i.name).join('\n') || '(空)';
+    } else { result = 'Desktop  Documents  Downloads  Pictures  Music  Videos'; }
+  }
+  else if (base === 'cat') {
+    if (API && args[0]) { result = await API.fs.read(args[0]) || 'ファイルが見つかりません'; }
+    else result = 'Usage: cat <ファイルパス>';
+  }
+  else if (base === 'echo') { result = args.join(' '); }
+  else if (TERM_CMDS[base]) { result = await TERM_CMDS[base](args); }
+  else if (API) {
+    const r = await API.term.exec(cmd);
+    result = r.out || r.err || '';
+  }
+  else { result = `コマンドが見つかりません: ${base}`; }
+
+  if (result === '__clear__') { out.innerHTML = ''; return; }
+  if (result !== undefined) {
+    const res = document.createElement('div');
+    res.className = 't-out';
+    res.style.whiteSpace = 'pre-wrap';
+    res.textContent = String(result);
+    out.appendChild(res);
+  }
+  out.scrollTop = out.scrollHeight;
+}
+
+// ── FILE MANAGER ──────────────────────────────────
+let FM_CUR = '';
+async function buildFileManager(body) {
+  body.innerHTML = `
+    <div class="app-toolbar">
+      <div class="app-btn" id="fm-up" onclick="fmUp()">⬆ 上へ</div>
+      <div id="fm-path">/ (ルート)</div>
+      <div class="app-btn" onclick="fmNewFolder()">📁 新規</div>
+      <div class="app-btn" onclick="fmRefresh()">🔄</div>
+    </div>
+    <div class="fm-grid" id="fm-grid"></div>`;
+  await fmNav('');
+}
+async function fmNav(rel) {
+  FM_CUR = rel;
+  const grid = document.getElementById('fm-grid'); if (!grid) return;
+  const path = document.getElementById('fm-path'); if (path) path.textContent = '/' + (rel || '');
+  grid.innerHTML = '';
+
+  let items = [];
+  if (API) {
+    items = await API.fs.list(rel);
+  } else {
+    items = [
+      { name:'Documents', isDir:true },{ name:'Downloads', isDir:true },
+      { name:'Desktop',   isDir:true },{ name:'Pictures',  isDir:true },
+      { name:'readme.txt',isDir:false,size:128 },
+    ];
+  }
+
+  items.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'fm-item';
+    const icon = item.isDir ? '📁' : getFileIcon(item.name);
+    el.innerHTML = `<div class="fm-icon">${icon}</div><div class="fm-name">${item.name}</div>`;
+    el.addEventListener('dblclick', async () => {
+      if (item.isDir) { await fmNav(rel ? rel + '/' + item.name : item.name); }
+      else {
+        const fp = rel ? rel + '/' + item.name : item.name;
+        const content = API ? await API.fs.read(fp) : '(内容なし)';
+        openApp('texteditor', { filename: fp, content: content || '' });
+      }
+    });
+    el.addEventListener('contextmenu', e => {
+      e.preventDefault(); e.stopPropagation();
+      const ctx = document.getElementById('ctxmenu');
+      ctx.innerHTML = `
+        <div class="ctx-item" onclick="document.getElementById('ctxmenu').classList.remove('show')">📋 ${item.name}</div>
+        <div class="ctx-sep"></div>
+        <div class="ctx-item danger" onclick="fmDelete('${rel ? rel+'/' : ''}${item.name}')">🗑 削除</div>`;
+      ctx.style.left = e.clientX + 'px'; ctx.style.top = e.clientY + 'px';
+      ctx.classList.add('show');
+    });
+    grid.appendChild(el);
+  });
+}
+function fmUp() { const p = FM_CUR.split('/'); p.pop(); fmNav(p.join('/')); }
+function fmRefresh() { fmNav(FM_CUR); }
+async function fmNewFolder() {
+  const name = prompt('フォルダ名:'); if (!name) return;
+  if (API) await API.fs.mkdir((FM_CUR ? FM_CUR + '/' : '') + name);
+  fmRefresh();
+}
+async function fmDelete(rel) {
+  if (!confirm(rel + ' を削除しますか？')) return;
+  if (API) await API.fs.delete(rel);
+  fmRefresh();
+  document.getElementById('ctxmenu').classList.remove('show');
+}
+function getFileIcon(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  return { txt:'📄',md:'📋',js:'⚡',html:'🌐',css:'🎨',json:'📊',
+           png:'🖼',jpg:'🖼',gif:'🖼',mp3:'🎵',mp4:'🎬',zip:'📦' }[ext] || '📄';
+}
+
+// ── TEXT EDITOR ───────────────────────────────────
+let ED_FILE = null;
+function buildTextEditor(body, data) {
+  ED_FILE = data?.filename || null;
+  body.innerHTML = `
+    <div class="app-toolbar">
+      <div class="app-btn primary" onclick="edSave()">💾 保存</div>
+      <div class="app-btn" onclick="edOpen()">📂 開く</div>
+      <div class="app-btn" onclick="edNew()">📄 新規</div>
+      <span class="app-label" id="ed-filename" style="margin-left:8px">${data?.filename || '(無題)'}</span>
+    </div>
+    <div id="editor-area">
+      <div id="ed-lines">1</div>
+      <textarea id="ed-code" spellcheck="false" oninput="edUpdateLines()" onscroll="edSyncScroll()" onkeydown="edKeyDown(event)"></textarea>
+    </div>`;
+  const ta = document.getElementById('ed-code');
+  if (data?.content !== undefined) ta.value = data.content;
+  edUpdateLines();
+}
+function edUpdateLines() {
+  const ta = document.getElementById('ed-code'); if (!ta) return;
+  const n = ta.value.split('\n').length;
+  const el = document.getElementById('ed-lines');
+  if (el) el.innerHTML = Array.from({length:n},(_,i)=>i+1).join('<br>');
+}
+function edSyncScroll() {
+  const ta = document.getElementById('ed-code');
+  const ln = document.getElementById('ed-lines');
+  if (ta && ln) ln.scrollTop = ta.scrollTop;
+}
+function edKeyDown(e) {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const ta = e.target, s = ta.selectionStart;
+    ta.value = ta.value.substring(0, s) + '  ' + ta.value.substring(ta.selectionEnd);
+    ta.selectionStart = ta.selectionEnd = s + 2;
+    edUpdateLines();
+  }
+  if (e.ctrlKey && e.key === 's') { e.preventDefault(); edSave(); }
+}
+async function edSave() {
+  const ta = document.getElementById('ed-code'); if (!ta) return;
+  if (ED_FILE && API) {
+    await API.fs.write(ED_FILE, ta.value);
+    notify('💾','保存完了', ED_FILE);
+  } else if (API) {
+    const r = await API.dialog.save({ defaultPath: 'document.txt', filters: [{ name:'Text', extensions:['txt','md','js','html','css'] }] });
+    if (!r.canceled && r.filePath) {
+      const fs = require('fs');
+      fs.writeFileSync(r.filePath, ta.value, 'utf-8');
+      notify('💾','保存完了', r.filePath);
+    }
+  } else {
+    const blob = new Blob([ta.value], { type: 'text/plain' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = ED_FILE || 'document.txt'; a.click();
+  }
+}
+function edNew() { const ta = document.getElementById('ed-code'); if (ta) ta.value = ''; ED_FILE = null; edUpdateLines(); }
+async function edOpen() {
+  if (!API) return;
+  const r = await API.dialog.open({ filters: [{ name:'Text', extensions:['txt','md','js','html','css','json'] }] });
+  if (r.canceled || !r.filePaths?.[0]) return;
+  const fs = require('fs'), p = r.filePaths[0];
+  const content = fs.readFileSync(p, 'utf-8');
+  const ta = document.getElementById('ed-code');
+  if (ta) { ta.value = content; edUpdateLines(); }
+  ED_FILE = p;
+  const lbl = document.getElementById('ed-filename');
+  if (lbl) lbl.textContent = p.split(/[/\\]/).pop();
+}
+
+// ── CALCULATOR ────────────────────────────────────
+let CALC_VAL = '', CALC_OP = '', CALC_PREV = '';
+function buildCalculator(body) {
+  body.innerHTML = `
+    <input id="calc-disp" readonly value="0">
+    <div class="calc-btns">
+      ${[['C','fn','±','fn','%','fn','÷','op'],
+         ['7','','8','','9','','×','op'],
+         ['4','','5','','6','','−','op'],
+         ['1','','2','','3','','＋','op'],
+         ['0','span2','','hidden','.','','＝','eq']].map(row => {
+        let html = '';
+        for (let i = 0; i < row.length; i += 2) {
+          const b = row[i], cls = row[i+1];
+          if (cls === 'hidden') { html += '<div></div>'; continue; }
+          const style = cls === 'span2' ? 'grid-column:span 2;' : '';
+          html += `<button class="calc-btn ${['op','eq','fn'].includes(cls)?cls:''}" style="${style}" onclick="calcBtn('${b}')">${b}</button>`;
+        }
+        return html;
+      }).join('')}
+    </div>`;
+}
+function calcBtn(b) {
+  const d = document.getElementById('calc-disp'); if (!d) return;
+  if (b === 'C') { CALC_VAL = ''; CALC_OP = ''; CALC_PREV = ''; d.value = '0'; return; }
+  if (['÷','×','−','＋'].includes(b)) { CALC_PREV = CALC_VAL; CALC_OP = b; CALC_VAL = ''; return; }
+  if (b === '＝') {
+    const a = parseFloat(CALC_PREV), c = parseFloat(CALC_VAL);
+    const r = {÷:a/c,×:a*c,−:a-c,＋:a+c}[CALC_OP];
+    d.value = isNaN(r) ? 'Error' : +r.toFixed(10); CALC_VAL = String(d.value); return;
+  }
+  if (b === '±') { CALC_VAL = String(-(parseFloat(CALC_VAL)||0)); d.value = CALC_VAL; return; }
+  if (b === '%') { CALC_VAL = String((parseFloat(CALC_VAL)||0)/100); d.value = CALC_VAL; return; }
+  if (b === '.' && CALC_VAL.includes('.')) return;
+  CALC_VAL += b; d.value = CALC_VAL;
+}
+
+// ── SETTINGS ──────────────────────────────────────
+function buildSettings(body) {
+  const themeOpts = Object.keys(THEMES).map(k => `<option value="${k}" ${CFG.theme===k?'selected':''}>${k}</option>`).join('');
+  const wpOpts = Object.keys(WALLPAPERS).map(k => `<option value="${k}" ${CFG.wallpaper===k?'selected':''}>${k}</option>`).join('');
+  body.innerHTML = `
+    <div class="app-wrap">
+      <div class="app-section">
+        <div class="app-section-title">外観</div>
+        <div class="setting-row">
+          <div><div class="setting-label">テーマ</div></div>
+          <select class="app-input" onchange="setCfg('theme',this.value)">${themeOpts}</select>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">壁紙</div></div>
+          <select class="app-input" onchange="setCfg('wallpaper',this.value)">${wpOpts}</select>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">アクセントカラー</div></div>
+          <input type="color" value="${CFG.accent||'#4f9cff'}" class="app-input" style="width:60px;height:30px;padding:2px;" onchange="setCfg('accent',this.value)">
+        </div>
+      </div>
+      <div class="app-section">
+        <div class="app-section-title">システム</div>
+        <div class="setting-row">
+          <div><div class="setting-label">OS 名</div></div>
+          <input class="app-input" value="${CFG.osName||'NexOS'}" style="width:140px" onchange="setCfg('osName',this.value)">
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">時計を表示</div></div>
+          <div class="toggle ${CFG.showClock?'on':''}" onclick="toggleCfg(this,'showClock')"></div>
+        </div>
+      </div>
+      <div class="app-section">
+        <div class="app-section-title">バージョン情報</div>
+        <div class="setting-row"><div class="setting-label">NexOS</div><span style="color:var(--mt)">v1.0.0</span></div>
+        <div class="setting-row"><div class="setting-label">Electron</div><span id="el-ver" style="color:var(--mt)">-</span></div>
+      </div>
+      <div class="app-btn primary" style="margin-top:12px" onclick="settingsSave()">💾 設定を保存</div>
+    </div>`;
+  if (API) API.sys.info().then(i => {
+    const v = document.getElementById('el-ver');
+    if (v) v.textContent = i.electronVersion || '-';
+  });
+}
+function setCfg(k, v) { CFG[k] = v; applyTheme(); }
+function toggleCfg(el, k) { el.classList.toggle('on'); CFG[k] = el.classList.contains('on'); }
+async function settingsSave() {
+  if (API) await API.cfg.save(CFG);
+  notify('⚙️','設定を保存しました','変更が適用されました');
+}
+
+// ── APP STORE ─────────────────────────────────────
+const ALL_APPS_STORE = [
+  { id:'browser',    cat:'internet' },
+  { id:'gallery',    cat:'media'    },
+  { id:'music',      cat:'media'    },
+  { id:'clock',      cat:'tools'    },
+  { id:'notes',      cat:'tools'    },
+  { id:'sysmonitor', cat:'system'   },
+  { id:'snake',      cat:'games'    },
+  { id:'paint',      cat:'tools'    },
+  { id:'weather',    cat:'internet' },
+  { id:'markdown',   cat:'tools'    },
+  // プリインストール済み（表示のみ）
+  { id:'terminal',   cat:'system'   },
+  { id:'filemanager',cat:'system'   },
+  { id:'texteditor', cat:'tools'    },
+  { id:'calculator', cat:'tools'    },
+  { id:'settings',   cat:'system'   },
+  { id:'appstore',   cat:'system'   },
+];
+function buildAppStore(body) {
+  body.innerHTML = `
+    <div class="app-toolbar">
+      <span style="font-size:12px;color:var(--mt)">🏪 アプリストア — アプリをインストール・アンインストール</span>
+    </div>
+    <div class="store-grid" id="store-grid"></div>`;
+  renderStore();
+}
+function renderStore() {
+  const grid = document.getElementById('store-grid'); if (!grid) return;
+  grid.innerHTML = '';
+  ALL_APPS_STORE.forEach(({ id }) => {
+    const def = APP_REGISTRY[id]; if (!def) return;
+    const installed = INSTALLED_APPS.includes(id);
+    const isCore = ['terminal','settings','appstore'].includes(id);
+    const card = document.createElement('div');
+    card.className = 'store-card';
+    card.innerHTML = `
+      <div class="sc-icon">${def.icon}</div>
+      <div class="sc-name">${def.name} <span class="sc-badge">${def.cat}</span></div>
+      <div class="sc-desc">${def.desc}</div>
+      <button class="sc-action ${installed?(isCore?'installed':'installed'):''}" id="sc-btn-${id}"
+        onclick="storeToggle('${id}')">
+        ${installed ? (isCore ? '✓ システム' : '✓ インストール済み') : '⬇ インストール'}
+      </button>`;
+    grid.appendChild(card);
+  });
+}
+async function storeToggle(id) {
+  const installed = INSTALLED_APPS.includes(id);
+  const isCore = ['terminal','settings','appstore'].includes(id);
+  if (isCore) return;
+  if (installed) {
+    if (!confirm(`${APP_REGISTRY[id]?.name} をアンインストールしますか？`)) return;
+    if (API) INSTALLED_APPS = await API.apps.uninstall(id);
+    else INSTALLED_APPS = INSTALLED_APPS.filter(a => a !== id);
+    closeWin(id);
+    notify('🗑','アンインストール完了', APP_REGISTRY[id]?.name);
+  } else {
+    if (API) INSTALLED_APPS = await API.apps.install(id);
+    else if (!INSTALLED_APPS.includes(id)) INSTALLED_APPS.push(id);
+    notify('✅','インストール完了', APP_REGISTRY[id]?.name);
+  }
+  renderDesktopIcons();
+  renderStartMenu();
+  renderStore();
+}
+
+// ── BROWSER ───────────────────────────────────────
+function buildBrowser(body) {
+  body.innerHTML = `
+    <div class="app-toolbar" style="gap:6px;">
+      <div class="app-btn" onclick="brNav(-1)">←</div>
+      <div class="app-btn" onclick="brNav(1)">→</div>
+      <input class="app-input" id="br-url" value="https://www.google.com" style="flex:1"
+        onkeydown="if(e.key==='Enter')brGo()" placeholder="URLを入力...">
+      <div class="app-btn primary" onclick="brGo()">移動</div>
+    </div>
+    <iframe id="br-frame" style="flex:1;border:none;background:#fff;" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>`;
+  setTimeout(() => brGo(), 100);
+}
+function brGo() {
+  const url = document.getElementById('br-url')?.value || '';
+  const frame = document.getElementById('br-frame'); if (!frame) return;
+  let u = url.trim();
+  if (!u.startsWith('http')) u = 'https://' + u;
+  if (API) { API.openURL(u); return; } // Electronではシステムブラウザで開く
+  frame.src = u;
+}
+function brNav(d) { /* history back/fwd */ }
+
+// ── GALLERY ───────────────────────────────────────
+function buildGallery(body) {
+  const imgs = ['🌅','🌃','🌌','🏔','🌊','🌸','🌺','🌻','🎑','🏞','🌄','🌠'];
+  body.innerHTML = `
+    <div class="app-toolbar"><span class="app-label">ギャラリー — ${imgs.length} 枚</span></div>
+    <div class="gallery-grid">${imgs.map((e,i) => `
+      <div class="gallery-thumb" style="background:linear-gradient(${120+i*20}deg,var(--acc)22,var(--bg));font-size:40px">
+        ${e}
+      </div>`).join('')}
+    </div>`;
+}
+
+// ── MUSIC ─────────────────────────────────────────
+const TRACKS = [
+  { title:'Lofi Beats', artist:'NexOS Radio', dur:'3:24' },
+  { title:'Cyber Dream', artist:'Synthwave', dur:'4:12' },
+  { title:'Midnight Code', artist:'DevMusic', dur:'2:58' },
+];
+let MUSIC_IDX = 0, MUSIC_PLAYING = false;
+function buildMusic(body) {
+  body.innerHTML = `
+    <div class="app-wrap" style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px;">
+      <div style="font-size:60px;margin-top:10px" id="music-art">🎵</div>
+      <div>
+        <div style="font-size:14px;font-weight:600" id="music-title">${TRACKS[0].title}</div>
+        <div style="font-size:11px;color:var(--mt)" id="music-artist">${TRACKS[0].artist}</div>
+      </div>
+      <div style="width:100%;background:var(--sf2);height:4px;border-radius:2px;position:relative;cursor:pointer" id="music-bar">
+        <div style="background:var(--acc);height:100%;border-radius:2px;width:30%;transition:width 1s" id="music-prog"></div>
+      </div>
+      <div style="display:flex;gap:20px;font-size:26px;align-items:center;">
+        <span style="cursor:pointer" onclick="musicPrev()">⏮</span>
+        <span style="cursor:pointer;font-size:32px" id="music-play" onclick="musicToggle()">▶</span>
+        <span style="cursor:pointer" onclick="musicNext()">⏭</span>
+      </div>
+      <div style="width:100%;">
+        ${TRACKS.map((t,i) => `<div onclick="musicPlay(${i})" style="display:flex;justify-content:space-between;padding:7px 10px;border-radius:6px;cursor:pointer;font-size:11px;${i===0?'background:var(--bd);':''}" class="music-track" data-idx="${i}">
+          <span>${t.title}</span><span style="color:var(--mt)">${t.dur}</span>
+        </div>`).join('')}
+      </div>
+    </div>`;
+}
+function musicToggle() {
+  MUSIC_PLAYING = !MUSIC_PLAYING;
+  const btn = document.getElementById('music-play');
+  if (btn) btn.textContent = MUSIC_PLAYING ? '⏸' : '▶';
+}
+function musicPlay(i) {
+  MUSIC_IDX = i;
+  document.querySelectorAll('.music-track').forEach((el,j) => {
+    el.style.background = j === i ? 'var(--bd)' : '';
+  });
+  const t = TRACKS[i];
+  const title = document.getElementById('music-title');
+  const artist = document.getElementById('music-artist');
+  if (title) title.textContent = t.title;
+  if (artist) artist.textContent = t.artist;
+  MUSIC_PLAYING = true;
+  const btn = document.getElementById('music-play');
+  if (btn) btn.textContent = '⏸';
+}
+function musicPrev() { musicPlay((MUSIC_IDX - 1 + TRACKS.length) % TRACKS.length); }
+function musicNext() { musicPlay((MUSIC_IDX + 1) % TRACKS.length); }
+
+// ── CLOCK ─────────────────────────────────────────
+let SW_RUNNING = false, SW_START = 0, SW_ELAPSED = 0, SW_TIMER = null;
+function buildClock(body) {
+  body.innerHTML = `
+    <div class="app-wrap" style="display:flex;flex-direction:column;gap:16px;">
+      <div style="text-align:center;padding:10px 0;border-bottom:1px solid var(--bd);">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:36px;letter-spacing:2px" id="clk-time">00:00:00</div>
+        <div style="font-size:11px;color:var(--mt)" id="clk-date"></div>
+      </div>
+      <div style="border-bottom:1px solid var(--bd);padding-bottom:14px;">
+        <div class="app-section-title">ストップウォッチ</div>
+        <div style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:28px;margin:8px 0" id="sw-disp">00:00.000</div>
+        <div style="display:flex;gap:8px;justify-content:center;">
+          <div class="app-btn primary" onclick="swToggle()" id="sw-btn">▶ 開始</div>
+          <div class="app-btn" onclick="swReset()">↺ リセット</div>
+        </div>
+      </div>
+      <div>
+        <div class="app-section-title">タイマー</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input class="app-input" id="timer-sec" type="number" value="60" min="1" max="3600" style="width:80px"> 秒
+          <div class="app-btn primary" onclick="timerStart()">開始</div>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:22px;margin-top:8px;color:var(--acc)" id="timer-disp"></div>
+      </div>
+    </div>`;
+  setInterval(() => {
+    const n = new Date();
+    const el = document.getElementById('clk-time');
+    if (el) el.textContent = n.toLocaleTimeString('ja-JP');
+    const de = document.getElementById('clk-date');
+    if (de) de.textContent = n.toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+    if (SW_RUNNING) {
+      const e = SW_ELAPSED + (Date.now() - SW_START);
+      const ms = e % 1000, s = Math.floor(e/1000)%60, m = Math.floor(e/60000);
+      const sd = document.getElementById('sw-disp');
+      if (sd) sd.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(ms).padStart(3,'0')}`;
+    }
+  }, 50);
+}
+function swToggle() {
+  const btn = document.getElementById('sw-btn');
+  if (!SW_RUNNING) {
+    SW_RUNNING = true; SW_START = Date.now();
+    if (btn) btn.textContent = '⏸ 停止';
+  } else {
+    SW_RUNNING = false; SW_ELAPSED += Date.now() - SW_START;
+    if (btn) btn.textContent = '▶ 開始';
+  }
+}
+function swReset() { SW_RUNNING = false; SW_ELAPSED = 0; const d = document.getElementById('sw-disp'); if (d) d.textContent = '00:00.000'; const b = document.getElementById('sw-btn'); if (b) b.textContent = '▶ 開始'; }
+let TIMER_REM = 0, TIMER_INT = null;
+function timerStart() {
+  clearInterval(TIMER_INT);
+  TIMER_REM = parseInt(document.getElementById('timer-sec')?.value || '60');
+  function tick() {
+    const d = document.getElementById('timer-disp');
+    if (d) d.textContent = `${Math.floor(TIMER_REM/60).toString().padStart(2,'0')}:${(TIMER_REM%60).toString().padStart(2,'0')}`;
+    if (TIMER_REM <= 0) { clearInterval(TIMER_INT); notify('⏰','タイマー終了','設定した時間になりました'); return; }
+    TIMER_REM--;
+  }
+  tick(); TIMER_INT = setInterval(tick, 1000);
+}
+
+// ── NOTES ─────────────────────────────────────────
+function buildNotes(body) {
+  const saved = localStorage.getItem('nexos_notes') || '';
+  body.innerHTML = `<textarea style="width:100%;height:100%;background:rgba(255,220,100,.05);border:none;color:var(--tx);font-size:13px;outline:none;resize:none;padding:14px;font-family:var(--font);line-height:1.7;" placeholder="付箋メモ..." oninput="localStorage.setItem('nexos_notes',this.value)">${saved}</textarea>`;
+}
+
+// ── SYSTEM MONITOR ────────────────────────────────
+function buildSysMonitor(body) {
+  body.innerHTML = `
+    <div class="app-wrap" id="sysmon-wrap">
+      <div class="app-section">
+        <div class="app-section-title">システム情報</div>
+        <div id="sysmon-info" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--mt)">読み込み中...</div>
+      </div>
+      <div class="app-section">
+        <div class="app-section-title">リソース使用状況 (シミュレート)</div>
+        ${['CPU','RAM','GPU','Disk'].map((n,i) => {
+          const vals = [0,0,0,55];
+          return `<div style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
+              <span>${n}</span><span id="sm-${n.toLowerCase()}-val" style="color:var(--acc)">-</span>
+            </div>
+            <div style="background:var(--sf2);height:6px;border-radius:3px;">
+              <div id="sm-${n.toLowerCase()}-bar" style="background:var(--acc);height:100%;border-radius:3px;width:0%;transition:width .5s;"></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="app-section">
+        <div class="app-section-title">プロセス</div>
+        <div id="sm-procs" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--mt);"></div>
+      </div>
+    </div>`;
+  sysMonUpdate();
+  setInterval(sysMonUpdate, 2000);
+}
+async function sysMonUpdate() {
+  let info = {};
+  if (API) info = await API.sys.info();
+  const infoEl = document.getElementById('sysmon-info');
+  if (infoEl) infoEl.innerHTML = `
+    Platform: ${info.platform||navigator.platform} | Arch: ${info.arch||'x64'}<br>
+    CPU Cores: ${info.cpus||'N/A'} | RAM: ${info.totalMem?Math.round(info.totalMem/1024/1024)+'MB':'N/A'}<br>
+    Free RAM: ${info.freeMem?Math.round(info.freeMem/1024/1024)+'MB':'N/A'} | Uptime: ${info.uptime?Math.floor(info.uptime/3600)+'h':'N/A'}`;
+
+  const cpu = 20 + Math.random() * 40;
+  const ram = info.totalMem ? Math.round((1 - info.freeMem/info.totalMem)*100) : 40 + Math.random()*20;
+  const gpu = 10 + Math.random() * 30;
+  const disk = 55;
+
+  [['cpu',cpu],['ram',ram],['gpu',gpu],['disk',disk]].forEach(([k,v]) => {
+    const bar = document.getElementById(`sm-${k}-bar`);
+    const val = document.getElementById(`sm-${k}-val`);
+    if (bar) bar.style.width = v + '%';
+    if (val) val.textContent = v.toFixed(0) + '%';
+  });
+
+  const procs = Object.entries(WINDOWS).map(([id,w]) =>
+    `${id.padEnd(14)} nexos-ui  ${(Math.random()*2).toFixed(1)}%`
+  ).join('\n') || '(アプリ未起動)';
+  const pe = document.getElementById('sm-procs');
+  if (pe) pe.textContent = 'PID  NAME          CPU\n' + '─'.repeat(28) + '\n' + procs;
+}
+
+// ── SNAKE ─────────────────────────────────────────
+function buildSnake(body) {
+  body.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;padding:10px;gap:8px;height:100%;">
+      <div style="display:flex;justify-content:space-between;width:320px;font-size:11px;color:var(--mt);">
+        <span>スコア: <span id="snk-score" style="color:var(--acc)">0</span></span>
+        <span id="snk-status">矢印キーで開始</span>
+      </div>
+      <canvas id="snk-c" width="320" height="320" style="border:1px solid var(--bd);border-radius:6px;background:#000;"></canvas>
+      <div class="app-btn" onclick="snakeReset()">🔄 リスタート</div>
+    </div>`;
+  snakeInit();
+}
+let SNK = { snake:[], dir:{x:1,y:0}, food:{}, score:0, running:false, loop:null };
+function snakeInit() {
+  SNK.snake = [{x:10,y:10},{x:9,y:10},{x:8,y:10}];
+  SNK.dir = {x:1,y:0}; SNK.score = 0; SNK.running = true;
+  clearInterval(SNK.loop);
+  snakeFood(); snakeDraw();
+  SNK.loop = setInterval(snakeTick, 130);
+  document.addEventListener('keydown', snakeKey);
+}
+function snakeReset() { snakeInit(); }
+function snakeFood() { SNK.food = {x:Math.floor(Math.random()*20),y:Math.floor(Math.random()*20)}; }
+function snakeTick() {
+  const head = {x:SNK.snake[0].x+SNK.dir.x, y:SNK.snake[0].y+SNK.dir.y};
+  if (head.x<0||head.x>=20||head.y<0||head.y>=20||SNK.snake.some(s=>s.x===head.x&&s.y===head.y)) {
+    SNK.running = false; clearInterval(SNK.loop);
+    const s = document.getElementById('snk-status'); if (s) s.textContent = 'GAME OVER!';
+    return;
+  }
+  SNK.snake.unshift(head);
+  if (head.x===SNK.food.x&&head.y===SNK.food.y) {
+    SNK.score++; snakeFood();
+    const sc = document.getElementById('snk-score'); if (sc) sc.textContent = SNK.score;
+  } else SNK.snake.pop();
+  snakeDraw();
+}
+function snakeDraw() {
+  const c = document.getElementById('snk-c'); if (!c) return;
+  const ctx = c.getContext('2d'), S = 16;
+  ctx.fillStyle = '#000'; ctx.fillRect(0,0,320,320);
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--acc').trim() + '44';
+  for (let i=0;i<20;i++) for(let j=0;j<20;j++) if((i+j)%2===0) ctx.fillRect(i*S,j*S,S,S);
+  ctx.fillStyle = '#ff4444'; ctx.fillRect(SNK.food.x*S+2,SNK.food.y*S+2,S-4,S-4);
+  const acc = getComputedStyle(document.documentElement).getPropertyValue('--acc').trim();
+  SNK.snake.forEach((s,i) => { ctx.fillStyle = i===0?acc:acc+'88'; ctx.fillRect(s.x*S+1,s.y*S+1,S-2,S-2); });
+}
+function snakeKey(e) {
+  if (!document.getElementById('snk-c')) { document.removeEventListener('keydown',snakeKey); return; }
+  const m = {ArrowUp:{x:0,y:-1},ArrowDown:{x:0,y:1},ArrowLeft:{x:-1,y:0},ArrowRight:{x:1,y:0}};
+  if (m[e.key]) { e.preventDefault(); const d=m[e.key]; if(d.x!=-SNK.dir.x||d.y!=-SNK.dir.y) SNK.dir=d; }
+}
+
+// ── PAINT ─────────────────────────────────────────
+function buildPaint(body) {
+  body.innerHTML = `
+    <div class="app-toolbar" style="flex-wrap:wrap;height:auto;min-height:36px;gap:6px;padding:5px 10px;">
+      <input type="color" id="paint-color" value="#4f9cff" style="width:30px;height:26px;border:none;cursor:pointer;border-radius:4px;">
+      <input type="range" id="paint-size" min="1" max="30" value="6" style="width:80px;" oninput="document.getElementById('paint-size-val').textContent=this.value">
+      <span id="paint-size-val" style="font-size:10px;color:var(--mt)">6</span>
+      <div class="app-btn" onclick="paintClear()">🗑 クリア</div>
+      <div class="app-btn" onclick="paintSave()">💾 保存</div>
+      <select class="app-input" id="paint-tool" style="font-size:11px;">
+        <option value="pen">✏ ペン</option>
+        <option value="eraser">⬜ 消しゴム</option>
+        <option value="fill">🪣 塗りつぶし</option>
+      </select>
+    </div>
+    <canvas id="paint-c" style="flex:1;cursor:crosshair;background:#fff;display:block;"></canvas>`;
+  const c = document.getElementById('paint-c');
+  let drawing = false;
+  function resize() { c.width=c.parentElement.clientWidth; c.height=c.parentElement.clientHeight-36; }
+  resize(); new ResizeObserver(resize).observe(c.parentElement);
+  const ctx = c.getContext('2d'); ctx.lineCap='round'; ctx.lineJoin='round';
+  c.onmousedown = e => { drawing=true; const r=c.getBoundingClientRect(); ctx.beginPath(); ctx.moveTo(e.clientX-r.left,e.clientY-r.top); };
+  c.onmousemove = e => {
+    if (!drawing) return;
+    const r=c.getBoundingClientRect();
+    const tool = document.getElementById('paint-tool')?.value;
+    ctx.strokeStyle = tool==='eraser' ? '#ffffff' : document.getElementById('paint-color')?.value;
+    ctx.lineWidth = document.getElementById('paint-size')?.value || 6;
+    ctx.lineTo(e.clientX-r.left,e.clientY-r.top); ctx.stroke(); ctx.beginPath(); ctx.moveTo(e.clientX-r.left,e.clientY-r.top);
+  };
+  c.onmouseup = c.onmouseleave = () => drawing = false;
+}
+function paintClear() { const c=document.getElementById('paint-c'); if(c){const ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);} }
+function paintSave() {
+  const c = document.getElementById('paint-c'); if (!c) return;
+  const a = document.createElement('a'); a.href=c.toDataURL(); a.download='nexos-paint.png'; a.click();
+}
+
+// ── WEATHER ───────────────────────────────────────
+function buildWeather(body) {
+  const weathers = [
+    {icon:'☀️',desc:'晴れ',temp:24,hum:45,wind:8},
+    {icon:'🌤',desc:'晴れ時々曇り',temp:20,hum:55,wind:12},
+    {icon:'⛅',desc:'曇り',temp:18,hum:65,wind:15},
+    {icon:'🌧',desc:'雨',temp:14,hum:80,wind:20},
+  ];
+  const w = weathers[Math.floor(Math.random()*weathers.length)];
+  const forecast = ['月','火','水','木','金'].map(() => {
+    const fw = weathers[Math.floor(Math.random()*weathers.length)];
+    return `<div style="text-align:center;padding:8px 6px;background:var(--sf2);border-radius:6px;font-size:11px;">
+      <div>${['月','火','水','木','金'][Math.floor(Math.random()*5)]}</div>
+      <div style="font-size:20px;margin:4px 0">${fw.icon}</div>
+      <div style="color:var(--acc)">${fw.temp}°</div>
+    </div>`;
+  }).join('');
+  body.innerHTML = `
+    <div class="app-wrap" style="text-align:center;">
+      <div style="font-size:11px;color:var(--mt);margin-bottom:8px;">📍 NexOS City</div>
+      <div style="font-size:72px;line-height:1">${w.icon}</div>
+      <div style="font-size:36px;font-weight:700;margin:8px 0">${w.temp}°C</div>
+      <div style="color:var(--mt);margin-bottom:16px">${w.desc}</div>
+      <div style="display:flex;justify-content:center;gap:20px;font-size:12px;color:var(--mt);margin-bottom:20px;">
+        <span>💧 ${w.hum}%</span><span>💨 ${w.wind}km/h</span>
+      </div>
+      <div class="app-section-title">5日間の予報</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px;">${forecast}</div>
+    </div>`;
+}
+
+// ── MARKDOWN ──────────────────────────────────────
+function buildMarkdown(body) {
+  const sample = `# NexOS Markdown\n\n**太字** / *斜体* / \`コード\`\n\n## リスト\n- アイテム1\n- アイテム2\n\n## コードブロック\n\`\`\`js\nconsole.log('Hello, NexOS!');\n\`\`\`\n`;
+  body.innerHTML = `
+    <div style="display:flex;flex:1;overflow:hidden;">
+      <textarea id="md-src" style="flex:1;background:var(--bg);border:none;color:var(--tx);padding:12px;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none;resize:none;border-right:1px solid var(--bd);" oninput="mdRender()">${sample}</textarea>
+      <div id="md-preview" style="flex:1;padding:14px;overflow:auto;font-size:13px;line-height:1.7;color:var(--tx);"></div>
+    </div>`;
+  mdRender();
+}
+function mdRender() {
+  const src = document.getElementById('md-src')?.value || '';
+  const html = src
+    .replace(/^### (.+)$/gm,'<h3 style="color:var(--acc);margin:12px 0 6px">$1</h3>')
+    .replace(/^## (.+)$/gm,'<h2 style="color:var(--acc);margin:14px 0 6px;border-bottom:1px solid var(--bd)">$1</h2>')
+    .replace(/^# (.+)$/gm,'<h1 style="color:var(--acc);margin:16px 0 8px">$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/`([^`]+)`/g,'<code style="background:var(--sf2);padding:1px 5px;border-radius:3px;font-family:monospace;color:var(--acc)">$1</code>')
+    .replace(/```[\w]*\n([\s\S]+?)\n```/g,'<pre style="background:var(--sf2);padding:10px;border-radius:6px;overflow:auto;font-family:monospace;font-size:11px;">$1</pre>')
+    .replace(/^- (.+)$/gm,'<li style="margin:3px 0">$1</li>')
+    .replace(/\n/g,'<br>');
+  const preview = document.getElementById('md-preview');
+  if (preview) preview.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ══════════════════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════════════════
+boot();
+</script>
+</body>
+</html>

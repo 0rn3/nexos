@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0e1018"/>
+      <stop offset="100%" style="stop-color:#1b1f2e"/>
+    </linearGradient>
+    <linearGradient id="acc" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3de0ff"/>
+      <stop offset="50%" style="stop-color:#4f9cff"/>
+      <stop offset="100%" style="stop-color:#8b5cff"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="256" height="256" rx="48" fill="url(#bg)"/>
+  <!-- Grid lines -->
+  <line x1="32" y1="32" x2="32" y2="224" stroke="#4f9cff18" stroke-width="1"/>
+  <line x1="64" y1="32" x2="64" y2="224" stroke="#4f9cff18" stroke-width="1"/>
+  <line x1="96" y1="32" x2="96" y2="224" stroke="#4f9cff18" stroke-width="1"/>
+  <line x1="128" y1="32" x2="128" y2="224" stroke="#4f9cff18" stroke-width="1"/>
+  <line x1="160" y1="32" x2="160" y2="224" stroke="#4f9cff18" stroke-width="1"/>
+  <line x1="192" y1="32" x2="192" y2="224" stroke="#4f9cff18" stroke-width="1"/>
+  <line x1="224" y1="32" x2="224" y2="224" stroke="#4f9cff18" stroke-width="1"/>
+  <!-- OSF text as geometric shapes -->
+  <!-- O -->
+  <rect x="38" y="88" width="50" height="80" rx="10" fill="none" stroke="url(#acc)" stroke-width="10"/>
+  <!-- F -->
+  <line x1="108" y1="88" x2="108" y2="168" stroke="url(#acc)" stroke-width="10" stroke-linecap="round"/>
+  <line x1="108" y1="88" x2="148" y2="88" stroke="url(#acc)" stroke-width="10" stroke-linecap="round"/>
+  <line x1="108" y1="128" x2="140" y2="128" stroke="url(#acc)" stroke-width="8" stroke-linecap="round"/>
+  <!-- Cursor blink -->
+  <rect x="158" y="148" width="8" height="20" rx="2" fill="url(#acc)" opacity="0.9"/>
+  <!-- Dots -->
+  <circle cx="196" cy="96" r="6" fill="#3dffa0"/>
+  <circle cx="216" cy="96" r="6" fill="#ffd84a"/>
+  <circle cx="236" cy="96" r="6" fill="#ff4d6a"/>
+</svg>
