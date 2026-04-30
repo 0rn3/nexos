@@ -456,7 +456,6 @@ option{background:var(--sf);}
 // GLOBAL STATE
 // ══════════════════════════════════════════════════
 const API = window.NexOS || null;  // Electron or null (browser fallback)
-console.log('API:', API);
 
 let CFG = {
   theme:'dark_cyber', accent:'#4f9cff', wallpaper:'grid',
@@ -479,8 +478,6 @@ async function boot() {
     CFG = await API.cfg.load();
     INSTALLED_APPS = await API.apps.list();
   }
-  renderDesktopIcons();
-  renderStartMenu();
 
   applyTheme();
   renderDesktopIcons();
@@ -1119,7 +1116,7 @@ function calcBtn(b) {
   if (['÷','×','−','＋'].includes(b)) { CALC_PREV = CALC_VAL; CALC_OP = b; CALC_VAL = ''; return; }
   if (b === '＝') {
     const a = parseFloat(CALC_PREV), c = parseFloat(CALC_VAL);
-    const r = {÷:a/c,×:a*c,−:a-c,＋:a+c}[CALC_OP];
+    const r = {'÷':a/c,'×':a*c,'−':a-c,'＋':a+c}[CALC_OP];
     d.value = isNaN(r) ? 'Error' : +r.toFixed(10); CALC_VAL = String(d.value); return;
   }
   if (b === '±') { CALC_VAL = String(-(parseFloat(CALC_VAL)||0)); d.value = CALC_VAL; return; }
@@ -1619,31 +1616,7 @@ function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'
 // ══════════════════════════════════════════════════
 // BOOT
 // ══════════════════════════════════════════════════
-boot()
-async function boot() {
-  if (document.body) {
-    if (API && API.platform === 'darwin') document.body.classList.add('mac');
-    else if (API && API.platform === 'win32') document.body.classList.add('win');
-  }
-
-  if (API) {
-    try {
-      CFG = await API.cfg.load();
-      INSTALLED_APPS = await API.apps.list();
-    } catch(e) {
-      console.error('API error:', e);
-    }
-  }
-
-  applyTheme();
-  renderDesktopIcons();
-  renderStartMenu();
-  startClock();
-
-  if (CFG.firstRun) {
-    setTimeout(() => {
-      notify('🎉', 'NexOSへようこそ！', 'アイコンをダブルクリックでアプリを起動できます');
-      if (API) { CFG.firstRun = false; API.cfg.save(CFG); }
-    }, 800);
-  }
-}
+boot();
+</script>
+</body>
+</html>
